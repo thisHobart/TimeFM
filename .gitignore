@@ -1,0 +1,33 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+.conda/
+venv/
+env/
+
+# PyCharm
+.idea/
+*.iml
+
+# HuggingFace / model cache
+hf_cache/
+.cache/
+
+# Training outputs
+outputs/
+checkpoints/
+logs/
+runs/
+
+# Data
+data/raw/
+data/cache/
+
+# OS files
+.DS_Store
+Thumbs.db
