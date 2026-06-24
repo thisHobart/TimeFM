@@ -31,3 +31,5 @@ data/cache/
 # OS files
 .DS_Store
 Thumbs.db
+/AGENTS.md
+/timesfm/
