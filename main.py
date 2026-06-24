@@ -12,11 +12,11 @@ from data_handle.price_loader import load_daily_timesfm_price_windows
 REPO_ROOT = Path(__file__).resolve().parent
 DATA_PATH = REPO_ROOT / "datasets" / "datasets.csv"
 MODEL_PATH = REPO_ROOT / "timesfm"
-RESULT_DIR = REPO_ROOT / "result" / "data1"
+RESULT_DIR = REPO_ROOT / "result" / "train_data"
 print("RESULT_DIR:", RESULT_DIR)
 PREDICTION_CSV = RESULT_DIR / "timesfm_price_predictions.csv"
 RUN_CONFIG_JSON = RESULT_DIR / "timesfm_run_config.json"
-CONTEXT_LEN = 1024
+CONTEXT_LEN = 2016
 HORIZON = 96
 ROLLING_STEPS = 1
 TOTAL_FORECAST_STEPS = HORIZON * ROLLING_STEPS

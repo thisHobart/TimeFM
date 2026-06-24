@@ -3,6 +3,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use("TkAgg")
 
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "Arial Unicode MS"]
@@ -10,10 +12,10 @@ plt.rcParams["axes.unicode_minus"] = False
 
 
 REPO_ROOT = Path(__file__).resolve().parent
-PREDICTION_CSV = REPO_ROOT / "result" / "data1" / "timesfm_price_predictions.csv"
-SAVE_DIR = REPO_ROOT / "result" / "pic2"
+PREDICTION_CSV = REPO_ROOT / "result" / "train_data" / "timesfm_price_predictions.csv"
+SAVE_DIR = REPO_ROOT / "result" / "pic"
 
-WINDOW_INDEX = 2
+WINDOW_INDEX = 4
 NUM_WINDOWS = 1
 POINTS_PER_DAY = 96
 X_LABEL_STEP = 2
