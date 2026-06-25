@@ -62,6 +62,7 @@ def build_timesfm_price_window(
     horizon: int = 128,
     cutoff_index: int | None = None,
     expected_minutes: int = 15,
+    allow_time_gaps: bool = False,
 ) -> TimesFMPriceWindow:
     if context_len <= 0:
         raise ValueError("context_len must be positive")
@@ -78,20 +79,30 @@ def build_timesfm_price_window(
         raise ValueError(
             f"not enough history: need {context_len} rows before cutoff_index {cutoff_index}"
         )
-    if future_end > len(series.price):
+    if not allow_time_gaps and future_end > len(series.price):
         raise ValueError(
             f"not enough future rows for evaluation: need horizon {horizon} from cutoff_index {cutoff_index}"
         )
 
-    window_datetime = series.datetime.iloc[context_start:future_end].reset_index(drop=True)
-    _assert_continuous_datetime(window_datetime, expected_minutes)
+    if not allow_time_gaps:
+        window_datetime = series.datetime.iloc[context_start:future_end].reset_index(drop=True)
+        _assert_continuous_datetime(window_datetime, expected_minutes)
+
+    future_datetime = pd.Series(
+        pd.date_range(
+            start=series.datetime.iloc[cutoff_index],
+            periods=horizon,
+            freq=f"{expected_minutes}min",
+        )
+    )
+    price_by_datetime = pd.Series(series.price, index=series.datetime)
 
     return TimesFMPriceWindow(
         context=series.price[context_start:cutoff_index],
         horizon=horizon,
         context_datetime=series.datetime.iloc[context_start:cutoff_index].reset_index(drop=True),
-        future_datetime=series.datetime.iloc[cutoff_index:future_end].reset_index(drop=True),
-        future_price=series.price[cutoff_index:future_end],
+        future_datetime=future_datetime,
+        future_price=price_by_datetime.reindex(future_datetime).to_numpy(dtype=np.float32),
     )
 
 
@@ -100,6 +111,7 @@ def load_timesfm_price_window(
     context_len: int = 1024,
     horizon: int = 128,
     cutoff_index: int | None = None,
+    allow_time_gaps: bool = False,
 ) -> TimesFMPriceWindow:
     series = load_price_series(csv_path)
     return build_timesfm_price_window(
@@ -107,6 +119,7 @@ def load_timesfm_price_window(
         context_len=context_len,
         horizon=horizon,
         cutoff_index=cutoff_index,
+        allow_time_gaps=allow_time_gaps,
     )
 
 
@@ -119,12 +132,13 @@ def build_daily_timesfm_price_windows(
     forecast_start_minute: int = 15,
     start_date: str | None = None,
     end_date: str | None = None,
+    allow_time_gaps: bool = False,
 ) -> list[TimesFMPriceWindow]:
     start_ts = pd.to_datetime(start_date) if start_date else None
     end_ts = pd.to_datetime(end_date) if end_date else None
     windows = []
 
-    for cutoff_index in range(context_len, len(series.price) - horizon + 1):
+    for cutoff_index in range(context_len, len(series.price)):
         forecast_start = series.datetime.iloc[cutoff_index]
         if forecast_start.hour != forecast_start_hour:
             continue
@@ -135,11 +149,15 @@ def build_daily_timesfm_price_windows(
         if end_ts is not None and forecast_start.normalize() > end_ts.normalize():
             continue
 
-        window_datetime = series.datetime.iloc[
-            cutoff_index - context_len:cutoff_index + horizon
-        ].reset_index(drop=True)
-        if _find_first_datetime_gap(window_datetime, expected_minutes) is not None:
-            continue
+        if not allow_time_gaps:
+            future_end = cutoff_index + horizon
+            if future_end > len(series.price):
+                continue
+            window_datetime = series.datetime.iloc[
+                cutoff_index - context_len:future_end
+            ].reset_index(drop=True)
+            if _find_first_datetime_gap(window_datetime, expected_minutes) is not None:
+                continue
 
         window = build_timesfm_price_window(
             series=series,
@@ -147,6 +165,7 @@ def build_daily_timesfm_price_windows(
             horizon=horizon,
             cutoff_index=cutoff_index,
             expected_minutes=expected_minutes,
+            allow_time_gaps=allow_time_gaps,
         )
         windows.append(window)
 
@@ -165,6 +184,7 @@ def load_daily_timesfm_price_windows(
     forecast_start_minute: int = 15,
     start_date: str | None = None,
     end_date: str | None = None,
+    allow_time_gaps: bool = False,
 ) -> list[TimesFMPriceWindow]:
     series = load_price_series(csv_path)
     return build_daily_timesfm_price_windows(
@@ -176,6 +196,7 @@ def load_daily_timesfm_price_windows(
         forecast_start_minute=forecast_start_minute,
         start_date=start_date,
         end_date=end_date,
+        allow_time_gaps=allow_time_gaps,
     )
 
 

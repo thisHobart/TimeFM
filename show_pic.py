@@ -12,10 +12,10 @@ plt.rcParams["axes.unicode_minus"] = False
 
 
 REPO_ROOT = Path(__file__).resolve().parent
-PREDICTION_CSV = REPO_ROOT / "result" / "train_data" / "timesfm_price_predictions.csv"
-SAVE_DIR = REPO_ROOT / "result" / "pic"
+PREDICTION_CSV = REPO_ROOT / "result" / "train_data1" / "timesfm_price_predictions.csv"
+SAVE_DIR = REPO_ROOT / "result" / "pic1"
 
-WINDOW_INDEX = 4
+WINDOW_INDEX = 0
 NUM_WINDOWS = 1
 POINTS_PER_DAY = 96
 X_LABEL_STEP = 2
@@ -132,7 +132,7 @@ def print_summary(selected, metrics, tcr_up, tcr_down, tcr_total):
 
 def plot_pred_true(selected, true_plot, pred_plot, tcr_up, tcr_down, tcr_total):
     time_steps = np.arange(len(pred_plot))
-    time_labels = selected["时间"].dt.strftime("%Y-%m-%d %H:%M:%S").tolist()
+    time_labels = selected["时间"].dt.strftime("%H:%M").tolist()
     title_day = selected["预测起始日"].iloc[0]
 
     fig, ax = plt.subplots(figsize=(14, 7))
