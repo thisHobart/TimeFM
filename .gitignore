@@ -23,6 +23,7 @@ outputs/
 checkpoints/
 logs/
 runs/
+adapters/
 
 # Data
 data/raw/
