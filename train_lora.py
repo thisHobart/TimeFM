@@ -21,13 +21,14 @@ EXPECTED_MINUTES = 15
 TRAIN_RATIO = 0.70
 VAL_RATIO = 0.15
 
-BATCH_SIZE = 2
-GRADIENT_ACCUMULATION_STEPS = 4
+BATCH_SIZE = 16
+GRADIENT_ACCUMULATION_STEPS = 1
 EPOCHS = 10
 LEARNING_RATE = 5e-5
 WEIGHT_DECAY = 0.01
 MAX_GRAD_NORM = 1.0
 NUM_WORKERS = 0
+LOG_EVERY_BATCHES = 20
 
 LORA_R = 4
 LORA_ALPHA = 8
@@ -125,6 +126,15 @@ def append_log(record):
         file.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def cuda_memory_gb():
+    if not torch.cuda.is_available():
+        return None
+    return {
+        "allocated_gb": round(torch.cuda.memory_allocated() / 1024**3, 3),
+        "reserved_gb": round(torch.cuda.memory_reserved() / 1024**3, 3),
+    }
+
+
 def save_config():
     ADAPTER_DIR.mkdir(parents=True, exist_ok=True)
     config = {
@@ -138,10 +148,12 @@ def save_config():
         "val_ratio": VAL_RATIO,
         "batch_size": BATCH_SIZE,
         "gradient_accumulation_steps": GRADIENT_ACCUMULATION_STEPS,
+        "effective_batch_size": BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS,
         "epochs": EPOCHS,
         "learning_rate": LEARNING_RATE,
         "weight_decay": WEIGHT_DECAY,
         "max_grad_norm": MAX_GRAD_NORM,
+        "log_every_batches": LOG_EVERY_BATCHES,
         "lora_r": LORA_R,
         "lora_alpha": LORA_ALPHA,
         "lora_dropout": LORA_DROPOUT,
@@ -157,6 +169,16 @@ def main():
     train_loader, val_loader = build_dataloaders()
     model = build_model(device)
     model.train()
+    print(
+        "Training setup:",
+        {
+            "device": str(device),
+            "train_batches": len(train_loader),
+            "val_batches": len(val_loader),
+            "effective_batch_size": BATCH_SIZE * GRADIENT_ACCUMULATION_STEPS,
+            "cuda_memory": cuda_memory_gb(),
+        },
+    )
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -177,6 +199,17 @@ def main():
 
             running_loss += float(loss.detach().cpu())
             running_batches += 1
+
+            if batch_index == 1 or batch_index % LOG_EVERY_BATCHES == 0:
+                print(
+                    {
+                        "epoch": epoch,
+                        "batch": batch_index,
+                        "total_batches": len(train_loader),
+                        "loss": round(float(loss.detach().cpu()), 6),
+                        "cuda_memory": cuda_memory_gb(),
+                    }
+                )
 
             if batch_index % GRADIENT_ACCUMULATION_STEPS == 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
