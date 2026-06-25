@@ -13,6 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parent
 DATA_PATH = REPO_ROOT / "datasets" / "datasets.csv"
 BASE_MODEL_PATH = REPO_ROOT / "timesfm" / "transformers"
 ADAPTER_DIR = REPO_ROOT / "adapters" / "timesfm_sichuan_lora_r4"
+BEST_ADAPTER_DIR = ADAPTER_DIR / "best"
+LAST_ADAPTER_DIR = ADAPTER_DIR / "last"
 LOG_PATH = REPO_ROOT / "outputs" / "timesfm_lora_train_log.jsonl"
 
 CONTEXT_LEN = 672
@@ -29,6 +31,8 @@ WEIGHT_DECAY = 0.01
 MAX_GRAD_NORM = 1.0
 NUM_WORKERS = 0
 LOG_EVERY_BATCHES = 20
+EARLY_STOPPING_PATIENCE = 3
+MIN_DELTA = 1e-4
 
 LORA_R = 4
 LORA_ALPHA = 8
@@ -141,6 +145,8 @@ def save_config():
         "data_path": str(DATA_PATH),
         "base_model_path": str(BASE_MODEL_PATH),
         "adapter_dir": str(ADAPTER_DIR),
+        "best_adapter_dir": str(BEST_ADAPTER_DIR),
+        "last_adapter_dir": str(LAST_ADAPTER_DIR),
         "context_len": CONTEXT_LEN,
         "horizon_len": HORIZON_LEN,
         "expected_minutes": EXPECTED_MINUTES,
@@ -154,6 +160,8 @@ def save_config():
         "weight_decay": WEIGHT_DECAY,
         "max_grad_norm": MAX_GRAD_NORM,
         "log_every_batches": LOG_EVERY_BATCHES,
+        "early_stopping_patience": EARLY_STOPPING_PATIENCE,
+        "min_delta": MIN_DELTA,
         "lora_r": LORA_R,
         "lora_alpha": LORA_ALPHA,
         "lora_dropout": LORA_DROPOUT,
@@ -188,6 +196,8 @@ def main():
     optimizer.zero_grad(set_to_none=True)
 
     global_step = 0
+    best_val_loss = float("inf")
+    epochs_without_improvement = 0
     for epoch in range(1, EPOCHS + 1):
         running_loss = 0.0
         running_batches = 0
@@ -231,13 +241,39 @@ def main():
             "train_loss": train_loss,
             "val_loss": val_loss,
         }
+
+        improved = val_loss < best_val_loss - MIN_DELTA
+        if improved:
+            best_val_loss = val_loss
+            epochs_without_improvement = 0
+            BEST_ADAPTER_DIR.mkdir(parents=True, exist_ok=True)
+            model.save_pretrained(BEST_ADAPTER_DIR)
+            record["best_val_loss"] = best_val_loss
+            record["saved_best_adapter"] = str(BEST_ADAPTER_DIR)
+        else:
+            epochs_without_improvement += 1
+            record["best_val_loss"] = best_val_loss
+            record["epochs_without_improvement"] = epochs_without_improvement
+
         append_log(record)
         print(record)
 
-    ADAPTER_DIR.mkdir(parents=True, exist_ok=True)
-    model.save_pretrained(ADAPTER_DIR)
+        if epochs_without_improvement >= EARLY_STOPPING_PATIENCE:
+            print(
+                "Early stopping:",
+                {
+                    "epoch": epoch,
+                    "best_val_loss": best_val_loss,
+                    "patience": EARLY_STOPPING_PATIENCE,
+                },
+            )
+            break
+
+    LAST_ADAPTER_DIR.mkdir(parents=True, exist_ok=True)
+    model.save_pretrained(LAST_ADAPTER_DIR)
     save_config()
-    print(f"Saved LoRA adapter to: {ADAPTER_DIR}")
+    print(f"Saved best LoRA adapter to: {BEST_ADAPTER_DIR}")
+    print(f"Saved last LoRA adapter to: {LAST_ADAPTER_DIR}")
 
 
 if __name__ == "__main__":

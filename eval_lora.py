@@ -15,7 +15,7 @@ from train_lora import collate_price_windows
 REPO_ROOT = Path(__file__).resolve().parent
 DATA_PATH = REPO_ROOT / "datasets" / "datasets.csv"
 BASE_MODEL_PATH = REPO_ROOT / "timesfm" / "transformers"
-ADAPTER_DIR = REPO_ROOT / "adapters" / "timesfm_sichuan_lora_r4"
+ADAPTER_DIR = REPO_ROOT / "adapters" / "timesfm_sichuan_lora_r4" / "best"
 OUTPUT_DIR = REPO_ROOT / "outputs" / "timesfm_lora_eval"
 PREDICTION_CSV = OUTPUT_DIR / "test_predictions.csv"
 METRICS_JSON = OUTPUT_DIR / "metrics.json"
